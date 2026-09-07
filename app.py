@@ -282,6 +282,19 @@ def driver_register():
     return render_template("driver_register.html")
 
 
+@app.route("/soforler")
+def drivers_list():
+    drivers = get_db().execute(
+        """
+        SELECT d.*,
+               (SELECT COUNT(*) FROM trips t WHERE t.driver_id = d.id) AS trip_count
+        FROM drivers d
+        ORDER BY d.name COLLATE NOCASE ASC
+        """
+    ).fetchall()
+    return render_template("drivers_list.html", drivers=drivers)
+
+
 @app.route("/sofor/giris", methods=["GET", "POST"])
 def driver_login():
     if current_driver():

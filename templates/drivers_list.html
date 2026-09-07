@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Şoför listesi · Seferim{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <h1>Şoför listesi</h1>
+  <p class="lede">Kayıtlı minibüs şoförleri</p>
+</section>
+
+{% if drivers %}
+  <div class="trip-grid">
+    {% for d in drivers %}
+      <article class="trip-card">
+        <div class="trip-card-top">
+          <span class="pill">{{ d.vehicle_type }}</span>
+          <span class="pill pill-muted">{{ d.trip_count }} sefer</span>
+        </div>
+        <h2>{{ d.name }}</h2>
+        <dl class="meta">
+          <div><dt>Plaka</dt><dd>{{ d.plate }}</dd></div>
+          <div><dt>Telefon</dt><dd><a href="tel:{{ d.phone }}">{{ d.phone }}</a></dd></div>
+        </dl>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    <h2>Henüz kayıtlı şoför yok</h2>
+    <p>Kayıt koduyla şoför olanlar burada listelenir.</p>
+  </div>
+{% endif %}
+{% endblock %}
