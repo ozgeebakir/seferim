@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Şoför kaydı · Seferim{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <h1>Şoför kaydı</h1>
+  <p class="lede">Sefer açmak için bilgilerinizi girin. Plaka ve araç tipi zorunlu.</p>
+  <form method="post" class="stack-form">
+    <label>
+      <span>Ad soyad</span>
+      <input name="name" required maxlength="80" placeholder="Adınız">
+    </label>
+    <label>
+      <span>Telefon</span>
+      <input name="phone" required maxlength="20" placeholder="05xx xxx xx xx">
+    </label>
+    <label>
+      <span>Plaka</span>
+      <input name="plate" required maxlength="15" placeholder="34 ABC 123" style="text-transform:uppercase">
+    </label>
+    <label>
+      <span>Araç tipi</span>
+      <select name="vehicle_type" required>
+        <option value="">Seçin</option>
+        {% for vt in vehicle_types %}
+          <option value="{{ vt }}">{{ vt }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary">Kayıt ol</button>
+  </form>
+  <p class="muted">Zaten kayıtlı mısınız? <a href="{{ url_for('driver_login') }}">Giriş yapın</a></p>
+</section>
+{% endblock %}

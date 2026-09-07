@@ -1,0 +1,7 @@
+.git/
+__pycache__/
+*.pyc
+data/*.db
+.venv/
+.env
+bin/cloudflared

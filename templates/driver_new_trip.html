@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Yeni sefer · Seferim{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('driver_dashboard') }}">← Panele dön</a>
+
+<section class="auth-card auth-wide">
+  <h1>Yeni sefer aç</h1>
+  <p class="lede">“Yarın sabah 08:00 gidiyorum” — sefer yayınlanır, yolcular yer ayırır.</p>
+  <form method="post" class="stack-form two-col">
+    <label>
+      <span>Güzergâh</span>
+      <select name="route_code" required>
+        <option value="">Seçin</option>
+        {% for code, label in routes %}
+          <option value="{{ code }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Koltuk sayısı</span>
+      <input type="number" name="seats_total" min="1" max="30" value="14" required>
+    </label>
+    <label>
+      <span>Tarih</span>
+      <input type="date" name="depart_date" value="{{ today }}" required>
+    </label>
+    <label>
+      <span>Saat</span>
+      <input type="time" name="depart_time" value="08:00" required>
+    </label>
+    <label>
+      <span>Plaka</span>
+      <input name="plate" value="{{ driver.plate }}" required maxlength="15" style="text-transform:uppercase">
+    </label>
+    <label>
+      <span>Araç tipi</span>
+      <select name="vehicle_type" required>
+        {% for vt in vehicle_types %}
+          <option value="{{ vt }}" {% if vt == driver.vehicle_type %}selected{% endif %}>{{ vt }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="full">
+      <span>Not (isteğe bağlı)</span>
+      <input name="note" maxlength="120" placeholder="Örn. cami önünden kalkış">
+    </label>
+    <div class="full">
+      <button type="submit" class="btn btn-primary">Seferi yayınla</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Refahiye–Erzincan minibüs seferleri · Seferim{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <h1>Refahiye–Erzincan minibüs seferleri</h1>
+</section>
+<form class="filter-bar" method="get" action="{{ url_for('index') }}">
+  <label>
+    <span>Güzergâh</span>
+    <select name="route">
+      <option value="">Tümü</option>
+      {% for code, label in routes %}
+        <option value="{{ code }}" {% if selected_route == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Tarihten itibaren</span>
+    <input type="date" name="date" value="{{ selected_date }}">
+  </label>
+  <button type="submit" class="btn btn-primary">Göster</button>
+</form>
+
+{% if trips %}
+  <div class="trip-grid">
+    {% for trip in trips %}
+      <article class="trip-card {% if trip.full %}is-full{% endif %}">
+        <div class="trip-card-top">
+          <span class="pill">{{ trip.route_label }}</span>
+          {% if trip.full %}
+            <span class="pill pill-muted">Dolu</span>
+          {% else %}
+            <span class="pill pill-ok">{{ trip.seats_left }} boş</span>
+          {% endif %}
+        </div>
+        <h2>{{ trip.depart_date }} · {{ trip.depart_time }}</h2>
+        <dl class="meta">
+          <div><dt>Şoför</dt><dd>{{ trip.driver_name }}</dd></div>
+          <div><dt>Plaka</dt><dd>{{ trip.plate }}</dd></div>
+          <div><dt>Araç</dt><dd>{{ trip.vehicle_type }}</dd></div>
+        </dl>
+        <a class="btn btn-ghost" href="{{ url_for('trip_detail', trip_id=trip.id) }}">
+          {% if trip.full %}Detay{% else %}Yer ayır{% endif %}
+        </a>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    <h2>Bu tarih için sefer yok</h2>
+    <p>Şoförler sefer açtıkça burada görünecek.</p>
+    <a class="btn btn-primary" href="{{ url_for('driver_register') }}">Şoför olarak sefer aç</a>
+  </div>
+{% endif %}
+{% endblock %}

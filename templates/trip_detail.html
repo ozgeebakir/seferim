@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Sefer detay · Seferim{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Seferlere dön</a>
+
+<section class="detail-layout">
+  <div class="panel">
+    <p class="eyebrow">{{ trip.route_label }}</p>
+    <h1>{{ trip.depart_date }} · {{ trip.depart_time }}</h1>
+    <dl class="meta meta-wide">
+      <div><dt>Şoför</dt><dd>{{ trip.driver_name }}</dd></div>
+      <div><dt>Telefon</dt><dd><a href="tel:{{ trip.driver_phone }}">{{ trip.driver_phone }}</a></dd></div>
+      <div><dt>Plaka</dt><dd>{{ trip.plate }}</dd></div>
+      <div><dt>Araç</dt><dd>{{ trip.vehicle_type }}</dd></div>
+      <div><dt>Koltuk</dt><dd>{{ trip.seats_taken }} / {{ trip.seats_total }} dolu · {{ trip.seats_left }} boş</dd></div>
+    </dl>
+    {% if trip.note %}
+      <p class="note">{{ trip.note }}</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Yer ayır</h2>
+    {% if trip.full %}
+      <p class="muted">Bu sefer dolu. Başka bir sefer seçebilirsiniz.</p>
+    {% else %}
+      <form method="post" class="stack-form">
+        <label>
+          <span>Ad soyad</span>
+          <input name="passenger_name" required maxlength="80" placeholder="Adınız">
+        </label>
+        <label>
+          <span>Telefon</span>
+          <input name="passenger_phone" required maxlength="20" placeholder="05xx xxx xx xx">
+        </label>
+        <label>
+          <span>Koltuk sayısı</span>
+          <input type="number" name="seats" min="1" max="{{ trip.seats_left }}" value="1" required>
+        </label>
+        <button type="submit" class="btn btn-primary">Yerimi ayır</button>
+        <p class="hint">Ödeme yok — yer ayrılır, ücret yolda / şoförle anlaşılır.</p>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if reservations %}
+  <section class="panel mt">
+    <h2>Ayrılan yerler</h2>
+    <ul class="simple-list">
+      {% for r in reservations %}
+        <li>
+          <strong>{{ r.passenger_name }}</strong>
+          <span>{{ r.seats }} koltuk</span>
+          <span class="muted">{{ r.passenger_phone }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+{% endblock %}

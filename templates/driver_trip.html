@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Sefer rezervasyonları · Seferim{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('driver_dashboard') }}">← Panele dön</a>
+
+<section class="panel">
+  <p class="eyebrow">{{ trip.route_label }}</p>
+  <h1>{{ trip.depart_date }} · {{ trip.depart_time }}</h1>
+  <p class="lede">{{ trip.seats_taken }} / {{ trip.seats_total }} koltuk dolu · {{ trip.seats_left }} boş</p>
+  <p class="muted">{{ trip.plate }} · {{ trip.vehicle_type }}</p>
+</section>
+
+<section class="panel mt">
+  <h2>Yolcular</h2>
+  {% if reservations %}
+    <ul class="simple-list">
+      {% for r in reservations %}
+        <li>
+          <strong>{{ r.passenger_name }}</strong>
+          <span>{{ r.seats }} koltuk</span>
+          <a href="tel:{{ r.passenger_phone }}">{{ r.passenger_phone }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Henüz rezervasyon yok.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('driver_delete_trip', trip_id=trip.id) }}" class="danger-zone"
+        onsubmit="return confirm('Bu seferi ve rezervasyonları silmek istediğinize emin misiniz?');">
+    <button type="submit" class="btn btn-danger">Seferi sil</button>
+  </form>
+</section>
+{% endblock %}

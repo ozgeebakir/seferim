@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Şoför paneli · Seferim{% endblock %}
+{% block content %}
+<section class="hero hero-compact">
+  <p class="eyebrow">Şoför paneli</p>
+  <h1>Merhaba, {{ current_driver.name }}</h1>
+  <p class="lede">{{ current_driver.plate }} · {{ current_driver.vehicle_type }}</p>
+  <a class="btn btn-primary" href="{{ url_for('driver_new_trip') }}">Yeni sefer aç</a>
+</section>
+
+{% if trips %}
+  <div class="trip-grid">
+    {% for trip in trips %}
+      <article class="trip-card">
+        <div class="trip-card-top">
+          <span class="pill">{{ trip.route_label }}</span>
+          <span class="pill pill-ok">{{ trip.seats_taken }}/{{ trip.seats_total }}</span>
+        </div>
+        <h2>{{ trip.depart_date }} · {{ trip.depart_time }}</h2>
+        <p class="muted">{{ trip.seats_left }} boş koltuk</p>
+        <a class="btn btn-ghost" href="{{ url_for('driver_trip', trip_id=trip.id) }}">Rezervasyonlar</a>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    <h2>Henüz sefer yok</h2>
+    <p>Yarın sabah 08:00 gibi bir sefer açıp yolculara görünür kılın.</p>
+  </div>
+{% endif %}
+{% endblock %}
