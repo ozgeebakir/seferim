@@ -3,8 +3,12 @@
 {% block content %}
 <section class="auth-card">
   <h1>Şoför kaydı</h1>
-  <p class="lede">Sefer açmak için bilgilerinizi girin. Plaka ve araç tipi zorunlu.</p>
+  <p class="lede">Sefer açmak için bilgilerinizi girin. Plaka, araç tipi ve kayıt kodu zorunlu.</p>
   <form method="post" class="stack-form">
+    <label>
+      <span>Kayıt kodu</span>
+      <input name="register_code" required maxlength="40" placeholder="Yetkilinin verdiği kod" autocomplete="off">
+    </label>
     <label>
       <span>Ad soyad</span>
       <input name="name" required maxlength="80" placeholder="Adınız">

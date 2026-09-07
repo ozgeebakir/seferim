@@ -8,5 +8,7 @@ services:
     envVars:
       - key: SEFERIM_SECRET
         generateValue: true
+      - key: SEFERIM_DRIVER_CODE
+        value: refahiye2026
       - key: PYTHON_VERSION
         value: "3.12.0"

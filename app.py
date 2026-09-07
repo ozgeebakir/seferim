@@ -36,6 +36,7 @@ VEHICLE_TYPES = [
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SEFERIM_SECRET", "seferim-dev-secret-change-me")
+DRIVER_REGISTER_CODE = os.environ.get("SEFERIM_DRIVER_CODE", "refahiye2026")
 
 
 def get_db() -> sqlite3.Connection:
@@ -246,8 +247,11 @@ def driver_register():
         phone = request.form.get("phone", "").strip()
         plate = request.form.get("plate", "").strip().upper()
         vehicle_type = request.form.get("vehicle_type", "").strip()
+        register_code = request.form.get("register_code", "").strip()
 
-        if not all([name, phone, plate, vehicle_type]):
+        if register_code != DRIVER_REGISTER_CODE:
+            flash("Kayıt kodu hatalı. Şoför kaydı için yetkili kod gerekir.", "error")
+        elif not all([name, phone, plate, vehicle_type]):
             flash("Tüm alanlar zorunludur.", "error")
         else:
             db = get_db()
