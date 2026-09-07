@@ -3,7 +3,7 @@
 {% block content %}
 <section class="page-heading">
   <h1>Şoför listesi</h1>
-  <p class="lede">Kayıtlı minibüs şoförleri</p>
+  <p class="lede">Kayıtlı minibüs şoförleri. Silmek için kayıt kodu gerekir.</p>
 </section>
 
 {% if drivers %}
@@ -19,6 +19,14 @@
           <div><dt>Plaka</dt><dd>{{ d.plate }}</dd></div>
           <div><dt>Telefon</dt><dd><a href="tel:{{ d.phone }}">{{ d.phone }}</a></dd></div>
         </dl>
+        <form method="post" action="{{ url_for('driver_delete', driver_id=d.id) }}" class="stack-form"
+              onsubmit="return confirm('{{ d.name }} silinsin mi? Seferleri ve rezervasyonları da silinir.');">
+          <label>
+            <span>Kayıt kodu (silmek için)</span>
+            <input name="register_code" required maxlength="40" placeholder="Kod" autocomplete="off">
+          </label>
+          <button type="submit" class="btn btn-danger">Şoförü sil</button>
+        </form>
       </article>
     {% endfor %}
   </div>

@@ -295,6 +295,40 @@ def drivers_list():
     return render_template("drivers_list.html", drivers=drivers)
 
 
+@app.route("/soforler/<int:driver_id>/sil", methods=["POST"])
+def driver_delete(driver_id: int):
+    code = request.form.get("register_code", "").strip()
+    if code != DRIVER_REGISTER_CODE:
+        flash("Silmek için doğru kayıt kodu gerekli.", "error")
+        return redirect(url_for("drivers_list"))
+
+    db = get_db()
+    driver = db.execute(
+        "SELECT id, name FROM drivers WHERE id = ?", (driver_id,)
+    ).fetchone()
+    if not driver:
+        flash("Şoför bulunamadı.", "error")
+        return redirect(url_for("drivers_list"))
+
+    trip_ids = [
+        row["id"]
+        for row in db.execute(
+            "SELECT id FROM trips WHERE driver_id = ?", (driver_id,)
+        ).fetchall()
+    ]
+    for trip_id in trip_ids:
+        db.execute("DELETE FROM reservations WHERE trip_id = ?", (trip_id,))
+    db.execute("DELETE FROM trips WHERE driver_id = ?", (driver_id,))
+    db.execute("DELETE FROM drivers WHERE id = ?", (driver_id,))
+    db.commit()
+
+    if session.get("driver_id") == driver_id:
+        session.pop("driver_id", None)
+
+    flash(f"{driver['name']} listeden silindi.", "success")
+    return redirect(url_for("drivers_list"))
+
+
 @app.route("/sofor/giris", methods=["GET", "POST"])
 def driver_login():
     if current_driver():
