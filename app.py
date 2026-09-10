@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
 
@@ -17,6 +17,16 @@ from flask import (
     request,
     session,
     url_for,
+)
+
+from schedule import (
+    AUTO_NOTE,
+    DEFAULT_ROUTE,
+    SEED_DRIVERS,
+    VEHICLE_TYPE,
+    build_auto_trips,
+    departure_time_for,
+    weekly_plan_for,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -97,6 +107,105 @@ def init_db() -> None:
     )
     db.commit()
     db.close()
+
+
+def ensure_seed_drivers(db: sqlite3.Connection) -> list[dict]:
+    """10 örnek şoförü kaydeder / günceller; algoritma sırasını korur."""
+    now = datetime.now().isoformat(timespec="seconds")
+    drivers: list[dict] = []
+    for seed in SEED_DRIVERS:
+        row = db.execute(
+            "SELECT * FROM drivers WHERE phone = ?", (seed["phone"],)
+        ).fetchone()
+        if row:
+            db.execute(
+                """
+                UPDATE drivers
+                SET name = ?, plate = ?, vehicle_type = ?
+                WHERE id = ?
+                """,
+                (seed["name"], seed["plate"], VEHICLE_TYPE, row["id"]),
+            )
+            driver_id = row["id"]
+        else:
+            cur = db.execute(
+                """
+                INSERT INTO drivers (name, phone, plate, vehicle_type, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (seed["name"], seed["phone"], seed["plate"], VEHICLE_TYPE, now),
+            )
+            driver_id = cur.lastrowid
+        drivers.append(
+            {
+                "id": driver_id,
+                "name": seed["name"],
+                "phone": seed["phone"],
+                "plate": seed["plate"],
+                "vehicle_type": VEHICLE_TYPE,
+            }
+        )
+    db.commit()
+    return drivers
+
+
+def regenerate_auto_schedule(weeks: int = 4) -> int:
+    """Otomatik vardiya seferlerini silip yeniden üretir. Dönüş: eklenen sefer sayısı."""
+    db = get_db()
+    drivers = ensure_seed_drivers(db)
+
+    old = db.execute(
+        "SELECT id FROM trips WHERE note = ?", (AUTO_NOTE,)
+    ).fetchall()
+    for trip in old:
+        db.execute("DELETE FROM reservations WHERE trip_id = ?", (trip["id"],))
+    db.execute("DELETE FROM trips WHERE note = ?", (AUTO_NOTE,))
+
+    now = datetime.now().isoformat(timespec="seconds")
+    trips = build_auto_trips(drivers, start=date.today(), weeks=weeks, route_code=DEFAULT_ROUTE)
+    for trip in trips:
+        db.execute(
+            """
+            INSERT INTO trips (
+                driver_id, route_code, depart_date, depart_time,
+                seats_total, driver_name, driver_phone, plate,
+                vehicle_type, note, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                trip["driver_id"],
+                trip["route_code"],
+                trip["depart_date"],
+                trip["depart_time"],
+                trip["seats_total"],
+                trip["driver_name"],
+                trip["driver_phone"],
+                trip["plate"],
+                trip["vehicle_type"],
+                trip["note"],
+                now,
+            ),
+        )
+    db.commit()
+    return len(trips)
+
+
+def bootstrap_schedule_if_needed() -> None:
+    """İlk açılışta örnek filo + program yoksa oluştur."""
+    with app.app_context():
+        db = get_db()
+        seed_phones = tuple(d["phone"] for d in SEED_DRIVERS)
+        placeholders = ",".join("?" * len(seed_phones))
+        count = db.execute(
+            f"SELECT COUNT(*) AS c FROM drivers WHERE phone IN ({placeholders})",
+            seed_phones,
+        ).fetchone()["c"]
+        auto = db.execute(
+            "SELECT COUNT(*) AS c FROM trips WHERE note = ? AND depart_date >= ?",
+            (AUTO_NOTE, date.today().isoformat()),
+        ).fetchone()["c"]
+        if count < len(SEED_DRIVERS) or auto == 0:
+            regenerate_auto_schedule(weeks=4)
 
 
 def route_label(code: str) -> str:
@@ -280,6 +389,50 @@ def driver_register():
             return redirect(url_for("driver_dashboard"))
 
     return render_template("driver_register.html")
+
+
+@app.route("/vardiya")
+def schedule_page():
+    rows = []
+    for index, seed in enumerate(SEED_DRIVERS):
+        rows.append(
+            {
+                "index": index + 1,
+                "name": seed["name"],
+                "phone": seed["phone"],
+                "plate": seed["plate"],
+                "plan": weekly_plan_for(index),
+            }
+        )
+    # Örnek: bugün kim saat kaçta
+    today_plan = []
+    for index, seed in enumerate(SEED_DRIVERS):
+        t = departure_time_for(index, date.today())
+        if t:
+            today_plan.append({"name": seed["name"], "time": t, "plate": seed["plate"]})
+    today_plan.sort(key=lambda x: x["time"])
+    return render_template(
+        "schedule.html",
+        rows=rows,
+        today_plan=today_plan,
+        day_names=["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
+    )
+
+
+@app.route("/vardiya/yenile", methods=["POST"])
+def schedule_regenerate():
+    code = request.form.get("register_code", "").strip()
+    if code != DRIVER_REGISTER_CODE:
+        flash("Programı yenilemek için doğru kayıt kodu gerekli.", "error")
+        return redirect(url_for("schedule_page"))
+    try:
+        weeks = int(request.form.get("weeks", "4"))
+    except ValueError:
+        weeks = 4
+    weeks = max(1, min(weeks, 12))
+    count = regenerate_auto_schedule(weeks=weeks)
+    flash(f"Vardiya programı yenilendi: {count} sefer oluşturuldu ({weeks} hafta).", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/soforler")
@@ -482,8 +635,10 @@ def driver_delete_trip(trip_id: int):
 
 if __name__ == "__main__":
     init_db()
+    bootstrap_schedule_if_needed()
     port = int(os.environ.get("PORT", "5050"))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     app.run(host="0.0.0.0", port=port, debug=debug)
 else:
     init_db()
+    bootstrap_schedule_if_needed()

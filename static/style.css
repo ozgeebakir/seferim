@@ -149,6 +149,37 @@ a:hover { text-decoration: underline; }
   margin: 0;
 }
 
+.page-heading .lede {
+  margin-top: 0.65rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.schedule-table th,
+.schedule-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.65rem 0.5rem;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.schedule-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.14em;

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Vardiya programı · Seferim{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <h1>Döner vardiya programı</h1>
+  <p class="lede">
+    Aktif günler: Pazartesi, Çarşamba, Cuma, Pazar.
+    Salı / Perşembe / Cumartesi sefer yok.
+    Her şoför bir sonraki saat dilimine kayar (Ahmet 08:00 → Mehmet 09:00 → …).
+  </p>
+</section>
+
+{% if today_plan %}
+<section class="panel">
+  <h2>Bugün kim gidiyor?</h2>
+  <ul class="simple-list">
+    {% for row in today_plan %}
+      <li>
+        <strong>{{ row.time }}</strong>
+        <span>{{ row.name }}</span>
+        <span class="muted">{{ row.plate }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% else %}
+<section class="panel">
+  <h2>Bugün</h2>
+  <p class="muted">Bugün vardiya günü değil (Salı / Perşembe / Cumartesi).</p>
+</section>
+{% endif %}
+
+<section class="panel mt">
+  <h2>Haftalık çizelge</h2>
+  <div class="table-wrap">
+    <table class="schedule-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Şoför</th>
+          <th>Plaka</th>
+          {% for d in day_names %}
+            <th>{{ d }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.index }}</td>
+            <td>
+              <strong>{{ row.name }}</strong>
+              <div class="muted">{{ row.phone }}</div>
+            </td>
+            <td>{{ row.plate }}</td>
+            {% for day_name, time in row.plan %}
+              <td>{% if time %}<span class="pill pill-ok">{{ time }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel mt">
+  <h2>Programı seferlere yaz</h2>
+  <p class="muted">Önümüzdeki haftalar için otomatik sefer üretir (kayıt kodu gerekir).</p>
+  <form method="post" action="{{ url_for('schedule_regenerate') }}" class="stack-form two-col">
+    <label>
+      <span>Kayıt kodu</span>
+      <input name="register_code" required maxlength="40" autocomplete="off">
+    </label>
+    <label>
+      <span>Kaç hafta</span>
+      <input type="number" name="weeks" min="1" max="12" value="4">
+    </label>
+    <div class="full">
+      <button type="submit" class="btn btn-primary">Seferleri oluştur / yenile</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
