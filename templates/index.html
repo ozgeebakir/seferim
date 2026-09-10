@@ -2,7 +2,8 @@
 {% block title %}Refahiye–Erzincan minibüs seferleri · Seferim{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <h1>Refahiye–Erzincan minibüs seferleri</h1>
+  <h1>{{ heading }} seferleri</h1>
+  <p class="lede">Her gün yalnızca o günün minibüsleri listelenir.</p>
 </section>
 <form class="filter-bar" method="get" action="{{ url_for('index') }}">
   <label>
@@ -15,10 +16,17 @@
     </select>
   </label>
   <label>
-    <span>Tarihten itibaren</span>
-    <input type="date" name="date" value="{{ selected_date }}">
+    <span>Gün</span>
+    <select name="date">
+      {% for opt in day_options %}
+        <option value="{{ opt.value }}" {% if selected_date == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
   </label>
   <button type="submit" class="btn btn-primary">Göster</button>
+  {% if not is_today %}
+    <a class="btn btn-ghost" href="{{ url_for('index') }}">Bugüne dön</a>
+  {% endif %}
 </form>
 
 {% if trips %}
@@ -33,7 +41,7 @@
             <span class="pill pill-ok">{{ trip.seats_left }} boş</span>
           {% endif %}
         </div>
-        <h2>{{ trip.depart_date }} · {{ trip.depart_time }}</h2>
+        <h2>{{ trip.depart_time }}</h2>
         <dl class="meta">
           <div><dt>Şoför</dt><dd>{{ trip.driver_name }}</dd></div>
           <div><dt>Plaka</dt><dd>{{ trip.plate }}</dd></div>
@@ -47,9 +55,9 @@
   </div>
 {% else %}
   <div class="empty">
-    <h2>Bu tarih için sefer yok</h2>
-    <p>Şoförler sefer açtıkça burada görünecek.</p>
-    <a class="btn btn-primary" href="{{ url_for('driver_register') }}">Şoför olarak sefer aç</a>
+    <h2>{% if is_today %}Bugün sefer yok{% else %}Bu gün sefer yok{% endif %}</h2>
+    <p>Seferler otomatik vardiyadan gelir. Vardiya sayfasından programı yenileyebilirsin.</p>
+    <a class="btn btn-primary" href="{{ url_for('schedule_page') }}">Vardiya çizelgesi</a>
   </div>
 {% endif %}
 {% endblock %}

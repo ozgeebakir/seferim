@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Yönetici girişi · Seferim{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <h1>Yönetici girişi</h1>
+  <p class="lede">Şoför kaydı ve vardiya yönetimi için giriş yapın.</p>
+  <form method="post" class="stack-form">
+    <label>
+      <span>Kullanıcı adı</span>
+      <input name="username" required maxlength="40" autocomplete="username" autofocus>
+    </label>
+    <label>
+      <span>Şifre</span>
+      <input type="password" name="password" required maxlength="80" autocomplete="current-password">
+    </label>
+    <button type="submit" class="btn btn-primary">Giriş yap</button>
+  </form>
+</section>
+{% endblock %}

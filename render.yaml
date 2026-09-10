@@ -10,5 +10,9 @@ services:
         generateValue: true
       - key: SEFERIM_DRIVER_CODE
         value: refahiye2026
+      - key: SEFERIM_ADMIN_USER
+        value: admin
+      - key: SEFERIM_ADMIN_PASS
+        value: refahiye2026
       - key: PYTHON_VERSION
         value: "3.12.0"

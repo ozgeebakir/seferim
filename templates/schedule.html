@@ -4,31 +4,29 @@
 <section class="page-heading">
   <h1>Döner vardiya programı</h1>
   <p class="lede">
-    Aktif günler: Pazartesi, Çarşamba, Cuma, Pazar.
-    Salı / Perşembe / Cumartesi sefer yok.
-    Her şoför bir sonraki saat dilimine kayar (Ahmet 08:00 → Mehmet 09:00 → …).
+    <strong>A grubu:</strong> Pazartesi, Çarşamba, Cuma, Pazar ·
+    <strong>B grubu:</strong> Salı, Perşembe, Cumartesi.
+    Saat mantığı aynı: 08:00 → 10:30 → 13:00 → 15:30 → 18:00. Boş gün yok.
   </p>
 </section>
 
-{% if today_plan %}
 <section class="panel">
-  <h2>Bugün kim gidiyor?</h2>
+  <h2>Bugün · {{ today_group }} grubu</h2>
+  {% if today_plan %}
   <ul class="simple-list">
     {% for row in today_plan %}
       <li>
         <strong>{{ row.time }}</strong>
         <span>{{ row.name }}</span>
+        <span class="pill">{{ row.group }}</span>
         <span class="muted">{{ row.plate }}</span>
       </li>
     {% endfor %}
   </ul>
+  {% else %}
+  <p class="muted">Bugün için sefer hesaplanamadı.</p>
+  {% endif %}
 </section>
-{% else %}
-<section class="panel">
-  <h2>Bugün</h2>
-  <p class="muted">Bugün vardiya günü değil (Salı / Perşembe / Cumartesi).</p>
-</section>
-{% endif %}
 
 <section class="panel mt">
   <h2>Haftalık çizelge</h2>
@@ -36,6 +34,7 @@
     <table class="schedule-table">
       <thead>
         <tr>
+          <th>Grup</th>
           <th>#</th>
           <th>Şoför</th>
           <th>Plaka</th>
@@ -47,6 +46,7 @@
       <tbody>
         {% for row in rows %}
           <tr>
+            <td><span class="pill">{{ row.group }}</span></td>
             <td>{{ row.index }}</td>
             <td>
               <strong>{{ row.name }}</strong>
@@ -63,14 +63,11 @@
   </div>
 </section>
 
+{% if current_admin %}
 <section class="panel mt">
   <h2>Programı seferlere yaz</h2>
-  <p class="muted">Önümüzdeki haftalar için otomatik sefer üretir (kayıt kodu gerekir).</p>
+  <p class="muted">Önümüzdeki haftalar için otomatik sefer üretir.</p>
   <form method="post" action="{{ url_for('schedule_regenerate') }}" class="stack-form two-col">
-    <label>
-      <span>Kayıt kodu</span>
-      <input name="register_code" required maxlength="40" autocomplete="off">
-    </label>
     <label>
       <span>Kaç hafta</span>
       <input type="number" name="weeks" min="1" max="12" value="4">
@@ -80,4 +77,5 @@
     </div>
   </form>
 </section>
+{% endif %}
 {% endblock %}

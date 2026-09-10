@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
 
@@ -15,6 +15,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     session,
     url_for,
 )
@@ -26,6 +27,8 @@ from schedule import (
     VEHICLE_TYPE,
     build_auto_trips,
     departure_time_for,
+    drivers_with_group_index,
+    group_for_day,
     weekly_plan_for,
 )
 
@@ -47,6 +50,8 @@ VEHICLE_TYPES = [
 app = Flask(__name__)
 app.secret_key = os.environ.get("SEFERIM_SECRET", "seferim-dev-secret-change-me")
 DRIVER_REGISTER_CODE = os.environ.get("SEFERIM_DRIVER_CODE", "refahiye2026")
+ADMIN_USERNAME = os.environ.get("SEFERIM_ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.environ.get("SEFERIM_ADMIN_PASS", "refahiye2026")
 
 
 def get_db() -> sqlite3.Connection:
@@ -110,10 +115,10 @@ def init_db() -> None:
 
 
 def ensure_seed_drivers(db: sqlite3.Connection) -> list[dict]:
-    """10 örnek şoförü kaydeder / günceller; algoritma sırasını korur."""
+    """10 örnek şoförü kaydeder / günceller; A/B grup sırasını korur."""
     now = datetime.now().isoformat(timespec="seconds")
     drivers: list[dict] = []
-    for seed in SEED_DRIVERS:
+    for seed in drivers_with_group_index():
         row = db.execute(
             "SELECT * FROM drivers WHERE phone = ?", (seed["phone"],)
         ).fetchone()
@@ -143,6 +148,8 @@ def ensure_seed_drivers(db: sqlite3.Connection) -> list[dict]:
                 "phone": seed["phone"],
                 "plate": seed["plate"],
                 "vehicle_type": VEHICLE_TYPE,
+                "group": seed["group"],
+                "group_index": seed["group_index"],
             }
         )
     db.commit()
@@ -191,7 +198,7 @@ def regenerate_auto_schedule(weeks: int = 4) -> int:
 
 
 def bootstrap_schedule_if_needed() -> None:
-    """İlk açılışta örnek filo + program yoksa oluştur."""
+    """İlk açılışta veya eski (tek grup) programdaysa A/B vardiyayı kur."""
     with app.app_context():
         db = get_db()
         seed_phones = tuple(d["phone"] for d in SEED_DRIVERS)
@@ -200,11 +207,26 @@ def bootstrap_schedule_if_needed() -> None:
             f"SELECT COUNT(*) AS c FROM drivers WHERE phone IN ({placeholders})",
             seed_phones,
         ).fetchone()["c"]
-        auto = db.execute(
-            "SELECT COUNT(*) AS c FROM trips WHERE note = ? AND depart_date >= ?",
+        # Salı = B grubu; ayrıca son sefer 18:00 olmalı
+        tuesday_auto = db.execute(
+            """
+            SELECT COUNT(*) AS c FROM trips
+            WHERE note = ?
+              AND depart_date >= ?
+              AND CAST(strftime('%w', depart_date) AS INTEGER) = 2
+            """,
             (AUTO_NOTE, date.today().isoformat()),
         ).fetchone()["c"]
-        if count < len(SEED_DRIVERS) or auto == 0:
+        has_1800 = db.execute(
+            """
+            SELECT COUNT(*) AS c FROM trips
+            WHERE note = ?
+              AND depart_date >= ?
+              AND depart_time = '18:00'
+            """,
+            (AUTO_NOTE, date.today().isoformat()),
+        ).fetchone()["c"]
+        if count < len(SEED_DRIVERS) or tuesday_auto == 0 or has_1800 == 0:
             regenerate_auto_schedule(weeks=4)
 
 
@@ -242,6 +264,10 @@ def current_driver() -> sqlite3.Row | None:
     ).fetchone()
 
 
+def current_admin() -> bool:
+    return bool(session.get("is_admin"))
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -253,24 +279,48 @@ def login_required(view):
     return wrapped
 
 
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not current_admin():
+            flash("Yönetici girişi gerekli.", "error")
+            return redirect(url_for("admin_login"))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 @app.context_processor
 def inject_globals():
     return {
         "current_driver": current_driver(),
+        "current_admin": current_admin(),
         "routes": ROUTES,
         "vehicle_types": VEHICLE_TYPES,
         "today": date.today().isoformat(),
     }
 
 
+@app.route("/google97e294fc82905f9f.html")
+def google_site_verification():
+    return send_from_directory(BASE_DIR, "google97e294fc82905f9f.html")
+
+
 @app.route("/")
 def index():
     route_code = request.args.get("route", "")
-    day = request.args.get("date", date.today().isoformat())
+    today = date.today()
+    raw_day = request.args.get("date", today.isoformat())
+    try:
+        selected = date.fromisoformat(raw_day)
+    except ValueError:
+        selected = today
+    day = selected.isoformat()
+    is_today = day == today.isoformat()
 
     query = """
         SELECT * FROM trips
-        WHERE depart_date >= ?
+        WHERE depart_date = ?
     """
     params: list[str] = [day]
 
@@ -278,14 +328,41 @@ def index():
         query += " AND route_code = ?"
         params.append(route_code)
 
-    query += " ORDER BY depart_date ASC, depart_time ASC"
+    query += " ORDER BY depart_time ASC"
 
     trips = [enrich_trip(row) for row in get_db().execute(query, params).fetchall()]
+
+    day_names = [
+        "Pazartesi",
+        "Salı",
+        "Çarşamba",
+        "Perşembe",
+        "Cuma",
+        "Cumartesi",
+        "Pazar",
+    ]
+    day_options = []
+    for offset in range(14):
+        d = today + timedelta(days=offset)
+        label = f"{day_names[d.weekday()]} · {d.strftime('%d.%m.%Y')}"
+        if offset == 0:
+            label = f"Bugün · {label}"
+        day_options.append({"value": d.isoformat(), "label": label})
+
+    heading = (
+        f"Bugün · {day_names[selected.weekday()]}"
+        if is_today
+        else f"{day_names[selected.weekday()]} · {selected.strftime('%d.%m.%Y')}"
+    )
+
     return render_template(
         "index.html",
         trips=trips,
         selected_route=route_code,
         selected_date=day,
+        is_today=is_today,
+        day_options=day_options,
+        heading=heading,
     )
 
 
@@ -348,19 +425,60 @@ def trip_detail(trip_id: int):
 
 @app.route("/sofor/kayit", methods=["GET", "POST"])
 def driver_register():
-    if current_driver():
-        return redirect(url_for("driver_dashboard"))
+    flash("Şoför kaydını yalnızca yönetici yapar. Kayıtlıysanız giriş yapın.", "error")
+    return redirect(url_for("driver_login"))
 
+
+@app.route("/yonetici/giris", methods=["GET", "POST"])
+def admin_login():
+    if current_admin():
+        return redirect(url_for("admin_dashboard"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session.pop("driver_id", None)
+            session["is_admin"] = True
+            flash("Yönetici girişi yapıldı.", "success")
+            return redirect(url_for("admin_dashboard"))
+        flash("Kullanıcı adı veya şifre hatalı.", "error")
+
+    return render_template("admin_login.html")
+
+
+@app.route("/yonetici/cikis")
+def admin_logout():
+    session.pop("is_admin", None)
+    flash("Yönetici çıkışı yapıldı.", "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/yonetici")
+@admin_required
+def admin_dashboard():
+    db = get_db()
+    drivers = db.execute(
+        """
+        SELECT d.*,
+               (SELECT COUNT(*) FROM trips t WHERE t.driver_id = d.id) AS trip_count
+        FROM drivers d
+        ORDER BY d.name COLLATE NOCASE ASC
+        """
+    ).fetchall()
+    return render_template("admin_dashboard.html", drivers=drivers)
+
+
+@app.route("/yonetici/sofor/yeni", methods=["GET", "POST"])
+@admin_required
+def admin_new_driver():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         plate = request.form.get("plate", "").strip().upper()
         vehicle_type = request.form.get("vehicle_type", "").strip()
-        register_code = request.form.get("register_code", "").strip()
 
-        if register_code != DRIVER_REGISTER_CODE:
-            flash("Kayıt kodu hatalı. Şoför kaydı için yetkili kod gerekir.", "error")
-        elif not all([name, phone, plate, vehicle_type]):
+        if not all([name, phone, plate, vehicle_type]):
             flash("Tüm alanlar zorunludur.", "error")
         else:
             db = get_db()
@@ -368,63 +486,68 @@ def driver_register():
                 "SELECT id FROM drivers WHERE phone = ?", (phone,)
             ).fetchone()
             if existing:
-                flash("Bu telefon kayıtlı. Giriş yapın.", "error")
-                return redirect(url_for("driver_login"))
-            cur = db.execute(
-                """
-                INSERT INTO drivers (name, phone, plate, vehicle_type, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    name,
-                    phone,
-                    plate,
-                    vehicle_type,
-                    datetime.now().isoformat(timespec="seconds"),
-                ),
-            )
-            db.commit()
-            session["driver_id"] = cur.lastrowid
-            flash("Kayıt tamam. Sefer açabilirsiniz.", "success")
-            return redirect(url_for("driver_dashboard"))
+                flash("Bu telefon zaten kayıtlı.", "error")
+            else:
+                db.execute(
+                    """
+                    INSERT INTO drivers (name, phone, plate, vehicle_type, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        name,
+                        phone,
+                        plate,
+                        vehicle_type,
+                        datetime.now().isoformat(timespec="seconds"),
+                    ),
+                )
+                db.commit()
+                flash(f"{name} kaydedildi. Telefonuyla giriş yapabilir.", "success")
+                return redirect(url_for("admin_dashboard"))
 
-    return render_template("driver_register.html")
+    return render_template("admin_new_driver.html")
 
 
 @app.route("/vardiya")
 def schedule_page():
     rows = []
-    for index, seed in enumerate(SEED_DRIVERS):
+    for seed in drivers_with_group_index():
         rows.append(
             {
-                "index": index + 1,
+                "index": seed["group_index"] + 1,
+                "group": seed["group"],
                 "name": seed["name"],
                 "phone": seed["phone"],
                 "plate": seed["plate"],
-                "plan": weekly_plan_for(index),
+                "plan": weekly_plan_for(seed["group"], seed["group_index"]),
             }
         )
-    # Örnek: bugün kim saat kaçta
+    today_group = group_for_day(date.today())
     today_plan = []
-    for index, seed in enumerate(SEED_DRIVERS):
-        t = departure_time_for(index, date.today())
+    for seed in drivers_with_group_index():
+        t = departure_time_for(seed["group"], seed["group_index"], date.today())
         if t:
-            today_plan.append({"name": seed["name"], "time": t, "plate": seed["plate"]})
+            today_plan.append(
+                {
+                    "name": seed["name"],
+                    "time": t,
+                    "plate": seed["plate"],
+                    "group": seed["group"],
+                }
+            )
     today_plan.sort(key=lambda x: x["time"])
     return render_template(
         "schedule.html",
         rows=rows,
         today_plan=today_plan,
+        today_group=today_group,
         day_names=["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
     )
 
 
 @app.route("/vardiya/yenile", methods=["POST"])
+@admin_required
 def schedule_regenerate():
-    code = request.form.get("register_code", "").strip()
-    if code != DRIVER_REGISTER_CODE:
-        flash("Programı yenilemek için doğru kayıt kodu gerekli.", "error")
-        return redirect(url_for("schedule_page"))
     try:
         weeks = int(request.form.get("weeks", "4"))
     except ValueError:
@@ -432,7 +555,7 @@ def schedule_regenerate():
     weeks = max(1, min(weeks, 12))
     count = regenerate_auto_schedule(weeks=weeks)
     flash(f"Vardiya programı yenilendi: {count} sefer oluşturuldu ({weeks} hafta).", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("schedule_page"))
 
 
 @app.route("/soforler")
@@ -448,20 +571,16 @@ def drivers_list():
     return render_template("drivers_list.html", drivers=drivers)
 
 
-@app.route("/soforler/<int:driver_id>/sil", methods=["POST"])
-def driver_delete(driver_id: int):
-    code = request.form.get("register_code", "").strip()
-    if code != DRIVER_REGISTER_CODE:
-        flash("Silmek için doğru kayıt kodu gerekli.", "error")
-        return redirect(url_for("drivers_list"))
-
+@app.route("/yonetici/sofor/<int:driver_id>/sil", methods=["POST"])
+@admin_required
+def admin_delete_driver(driver_id: int):
     db = get_db()
     driver = db.execute(
         "SELECT id, name FROM drivers WHERE id = ?", (driver_id,)
     ).fetchone()
     if not driver:
         flash("Şoför bulunamadı.", "error")
-        return redirect(url_for("drivers_list"))
+        return redirect(url_for("admin_dashboard"))
 
     trip_ids = [
         row["id"]
@@ -478,8 +597,8 @@ def driver_delete(driver_id: int):
     if session.get("driver_id") == driver_id:
         session.pop("driver_id", None)
 
-    flash(f"{driver['name']} listeden silindi.", "success")
-    return redirect(url_for("drivers_list"))
+    flash(f"{driver['name']} silindi.", "success")
+    return redirect(url_for("admin_dashboard"))
 
 
 @app.route("/sofor/giris", methods=["GET", "POST"])
@@ -495,6 +614,7 @@ def driver_login():
         if not driver:
             flash("Bu telefonla kayıtlı şoför yok.", "error")
         else:
+            session.pop("is_admin", None)
             session["driver_id"] = driver["id"]
             flash(f"Hoş geldiniz, {driver['name']}.", "success")
             return redirect(url_for("driver_dashboard"))

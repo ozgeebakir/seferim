@@ -3,7 +3,7 @@
 {% block content %}
 <section class="auth-card">
   <h1>Şoför girişi</h1>
-  <p class="lede">Kayıtlı telefon numaranızla giriş yapın.</p>
+  <p class="lede">Yöneticinin kaydettiği telefon numaranızla giriş yapın.</p>
   <form method="post" class="stack-form">
     <label>
       <span>Telefon</span>
@@ -11,6 +11,6 @@
     </label>
     <button type="submit" class="btn btn-primary">Giriş yap</button>
   </form>
-  <p class="muted">Hesabınız yok mu? <a href="{{ url_for('driver_register') }}">Şoför kaydı</a></p>
+  <p class="muted">Hesabınız yoksa yöneticiden kayıt isteyin.</p>
 </section>
 {% endblock %}

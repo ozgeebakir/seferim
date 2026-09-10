@@ -20,13 +20,17 @@
       <a href="{{ url_for('index') }}">Seferler</a>
       <a href="{{ url_for('schedule_page') }}">Vardiya</a>
       <a href="{{ url_for('drivers_list') }}">Şoförler</a>
-      {% if current_driver %}
+      {% if current_admin %}
+        <a href="{{ url_for('admin_dashboard') }}">Yönetim</a>
+        <a href="{{ url_for('admin_new_driver') }}" class="nav-cta">Şoför ekle</a>
+        <a href="{{ url_for('admin_logout') }}">Çıkış</a>
+      {% elif current_driver %}
         <a href="{{ url_for('driver_dashboard') }}">Panelim</a>
         <a href="{{ url_for('driver_new_trip') }}" class="nav-cta">Sefer aç</a>
         <a href="{{ url_for('driver_logout') }}">Çıkış</a>
       {% else %}
         <a href="{{ url_for('driver_login') }}">Şoför girişi</a>
-        <a href="{{ url_for('driver_register') }}" class="nav-cta">Şoför ol</a>
+        <a href="{{ url_for('admin_login') }}">Yönetici</a>
       {% endif %}
     </nav>
   </header>
@@ -45,7 +49,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Seferim · yer ayırma (ödeme yok) · şoför kendi seferini yayınlar</p>
+    <p>Seferim · yer ayırma (ödeme yok) · şoför kaydını yönetici yapar</p>
   </footer>
 </body>
 </html>

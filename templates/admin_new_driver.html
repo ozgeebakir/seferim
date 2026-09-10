@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Şoför ekle · Seferim{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('admin_dashboard') }}">← Yönetime dön</a>
+<section class="auth-card">
+  <h1>Yeni şoför ekle</h1>
+  <p class="lede">Kayıttan sonra şoför telefon numarasıyla giriş yapabilir.</p>
+  <form method="post" class="stack-form">
+    <label>
+      <span>Ad soyad</span>
+      <input name="name" required maxlength="80" placeholder="Adı">
+    </label>
+    <label>
+      <span>Telefon</span>
+      <input name="phone" required maxlength="20" placeholder="05xx xxx xx xx">
+    </label>
+    <label>
+      <span>Plaka</span>
+      <input name="plate" required maxlength="15" placeholder="24 ABC 123" style="text-transform:uppercase">
+    </label>
+    <label>
+      <span>Araç tipi</span>
+      <select name="vehicle_type" required>
+        <option value="">Seçin</option>
+        {% for vt in vehicle_types %}
+          <option value="{{ vt }}">{{ vt }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary">Kaydet</button>
+  </form>
+</section>
+{% endblock %}

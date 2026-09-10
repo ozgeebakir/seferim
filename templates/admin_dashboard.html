@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Yönetim · Seferim{% endblock %}
+{% block content %}
+<section class="hero hero-compact">
+  <p class="eyebrow">Yönetici paneli</p>
+  <h1>Şoför yönetimi</h1>
+  <p class="lede">Şoförleri siz kaydedersiniz; onlar telefonlarıyla giriş yapar.</p>
+  <a class="btn btn-primary" href="{{ url_for('admin_new_driver') }}">Yeni şoför ekle</a>
+  <a class="btn btn-ghost" href="{{ url_for('schedule_page') }}">Vardiya programı</a>
+</section>
+
+{% if drivers %}
+  <div class="trip-grid">
+    {% for d in drivers %}
+      <article class="trip-card">
+        <div class="trip-card-top">
+          <span class="pill">{{ d.vehicle_type }}</span>
+          <span class="pill pill-muted">{{ d.trip_count }} sefer</span>
+        </div>
+        <h2>{{ d.name }}</h2>
+        <dl class="meta">
+          <div><dt>Plaka</dt><dd>{{ d.plate }}</dd></div>
+          <div><dt>Telefon</dt><dd><a href="tel:{{ d.phone }}">{{ d.phone }}</a></dd></div>
+        </dl>
+        <form method="post" action="{{ url_for('admin_delete_driver', driver_id=d.id) }}"
+              onsubmit="return confirm('{{ d.name }} silinsin mi?');">
+          <button type="submit" class="btn btn-danger">Sil</button>
+        </form>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    <h2>Henüz şoför yok</h2>
+    <p>İlk şoförü ekleyerek başlayın.</p>
+  </div>
+{% endif %}
+{% endblock %}
